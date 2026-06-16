@@ -98,5 +98,25 @@ This macro allows for standardization of ROI lengths within a chosen range. Anyt
     - For length, the results of the calculation for puncta per 10um are infinity, and all lengths are 0. In that case, this can be calculate manually (tranfer over the correct lengths and calculte) and the macro does not need to be re-run
     - For thresholding, this is a bigger issue, where the issue is typically due to mismatched file names/indexes for identification. You'll see it upon runnig the macaro as the thresholding is set and segmentation of particles. Checking filenames compared to values within "Label2Array" or the .csv "File" column is the first thing to see. Additionally, if there is a common string (ROIs from the same image) you may accidentally apply the same threshold across the multiple ROIs (can be checked in the average puncta results document by looking at the thresholding value for each line item). Sometimes closing Fiji and starting again can fix if there doesn't seem to be any real reason for the issue.
 
+**6. Colocalization Analysis**
+This macro allows you to quantify colocalization of 2 proteins of interest (C1 and C2), which have already been examined for single channel puncta analysis.
+- Starting folders (obtained from independent runs of Macro 5):
+  - C1 Folder (Masks)
+  - C2 Folder (Masks)
+- Output Folder (auto-generate "Merge" folder)
+- Prompt:
+  - Name channels 1, 2
+  - Pixel scale
+    
+- Part 1: Opens [n] files from both C1 and C2 folders, merge, and then saves (note: Macro automatically selects images by their number [n] in filelist alphabetically, so you will want to make sure these numbers match up. worth checking during first attemps to make sure the merged images are using the right match)
+- Part 2: Opens merged mask image, splits channels, analyzes particles of C1, then measures the ROIs on C2, and vice versa.
 
+- Output: .csv files
+  - Colocalization Summary: notes (Channels, scale)
+  - Channel 1 Individual Puncta: C1 ROIs measures on C2
+  - Channel 2 Individual Puncta: C2 ROIs measures on C1
+
+- Results will give you for individual puncta:
+  - sizes (scaled)
+  - percent colocalization (how much of the ROI is positive for signal from the other channel. typically >25% is considered colocalization
     
