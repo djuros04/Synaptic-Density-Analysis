@@ -1,0 +1,103 @@
+ var string1,string2;
+ 
+ //merge thresholded channel images C1/C2
+ //you will need single channel images sorted into folders by channel. Image file names may need to be adjusted to match and allown for pairing
+setBatchMode(true);
+    file1 = getDirectory("Channel 1");
+    list1 = getFileList(file1);
+    n1 = lengthOf(list1);
+    file2 = getDirectory("Channel 2");
+    list2 = getFileList(file2); 
+    output = getDirectory("Select folder to save file/s");
+    input = output+File.separator+"Merge";
+    File.makeDirectory(input);
+    list4 = getFileList(input);
+    n3 = lengthOf(list4);
+    small = n1;
+print("\\Clear");
+    Dialog.create("Merge Function");
+    Dialog.addString("Channel 1", "");
+        Dialog.addString("Channel 2", "");
+        Dialog.addNumber("Pixel Scale (um/pixel):", 0.10048828);
+    Dialog.show();
+chan1=Dialog.getString();
+chan2=Dialog.getString();
+scale = Dialog.getNumber();  
+
+print("Channel 1: "+chan1);
+print("Channel 2: "+chan2);
+print("Scale: "+scale);
+print(".csv input will count area of all puncta, as well as percent area coverage by the other channel.")
+print("Typical colocalization is >25% Area coverage.");
+selectWindow("Log");
+saveAs("Text",output+"Summary Puncta Analysis.csv");
+    //condition for for-loop
+    for(i = n3 ++; i < small; i++) {
+      title = list1[i];
+      open(file1 + list1[i]);
+      open(file2 + list2[i]);
+      run("Merge Channels...", "c1=[" + list1[i] + "] c2=[" + list2[i] + "] create ignore");
+      saveAs("tiff", input+File.separator+title);
+    }
+    
+   
+
+string1="Label,#,Area,%Area\n";
+string2="Label,#,Area,%Area\n";
+     
+      //loop tif images to process
+list = getFileList(input);
+list = Array.sort(list);
+for (i = 0; i < list.length; i++) {
+	if(File.isDirectory(input + File.separator + list[i]))
+		thresholdfolder(input + File.separator + list[i]);
+	if(endsWith(list[i],".tif"))
+		threshold(input, output, list[i]);
+}
+
+//Initiate ROI analysis
+run("Clear Results");
+run("Set Measurements...", "area area_fraction limit display redirect=None decimal=2");
+
+File.saveString(string1, output+File.separator+chan1+" Individual_Puncta.csv");
+File.saveString(string2, output+File.separator+chan2+" Individual_Puncta.csv");
+run("Close");
+run("Close All");
+
+
+
+function threshold(input, output, file){
+roiManager("reset");
+open(input+File.separator+file);
+title=getTitle();
+  run("Properties...", "unit=um pixel_width="+scale+" pixel_height="+scale+" voxel_depth=1");
+roiManager("reset");
+run("Split Channels");
+selectImage("C1-"+title);
+setThreshold(1, 255);
+run("Analyze Particles...", "pixel show=Masks add");
+close("mask of C1-"+title);
+selectImage("C2-"+title);
+roiManager("deselect");
+roiManager("Measure");
+selectWindow("Results");
+		for (i = 0; i < nResults; i++) {
+		string1= string1+title+","+i+1+","+getResult("Area",i)+","+getResult("%Area",i)+"\n";
+			       	}
+	run("Clear Results");
+	roiManager("reset");
+	selectImage("C2-"+title);
+setThreshold(1, 255);
+run("Analyze Particles...", "pixel show=Masks add");
+close("mask of C2-"+title);
+	run("Clear Results");
+selectImage("C1-"+title);
+resetThreshold;
+roiManager("Measure");	
+selectWindow("Results");
+		for (i = 0; i < nResults; i++) {
+		string2= string2+title+","+i+1+","+getResult("Area",i)+","+getResult("%Area",i)+"\n";
+			       	}
+	run("Clear Results");
+}
+			 
