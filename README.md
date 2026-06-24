@@ -131,6 +131,7 @@ Inputs
 - Two Individual Puncta CSVs from 5. Single Channel Puncta Analysis
   - CSVs should be from two different stains - you are looking at the distance between two different sets of puncta
   - The order in which you upload the CSVs is important. The first CSV is the query while the second CSV is the reference. The code looks at each query puncta and finds the nearest reference puncta to it
+  - Make sure you are using the version of 5. Single Channel Puncta Analysis in this fork, which collects centroid location
   - The macro will use the names of each entry to only analyze nearest neighbor of puncta recorded from the same image
 
 Outputs
