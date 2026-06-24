@@ -1,0 +1,349 @@
+// Fiji / ImageJ IJ1 Macro
+// Cross-CSV nearest-neighbor by Filename, with filename normalization that
+// removes the last two "words" (tokens) so "Green pla.tif" / "Red vglut1.tif" are ignored
+// while preserving the number after ".tif" (e.g. "... MAX.tif 1").
+//
+// Expected columns in BOTH CSVs (header names can vary in case/spacing/quotes):
+//   Filename, PunctaID, X, Y
+//
+// Output: Results table saved next to CSV A as: <CSV_A_basename>_CrossNN.csv
+
+macro "Cross-CSV Nearest Neighbor by Filename (Clean)" {
+
+    // -----------------------
+    // Select inputs
+    // -----------------------
+    pathA = File.openDialog("Select CSV A (query puncta, e.g. Homer1)");
+    if (pathA=="") exit("No CSV A selected.");
+
+    pathB = File.openDialog("Select CSV B (reference puncta, e.g. vGlut1)");
+    if (pathB=="") exit("No CSV B selected.");
+
+    // -----------------------
+    // Read CSV A
+    // -----------------------
+    textA = normalizeNewlines(File.openAsString(pathA));
+    if (textA=="") exit("Could not read CSV A.");
+    rowsA = split(textA, "\n");
+    if (rowsA.length < 2) exit("CSV A has no data rows.");
+
+    headerA = split(rowsA[0], ",");
+    aColFilename = findColLoose(headerA, "Filename");
+    aColID       = findColLoose(headerA, "PunctaID");
+    aColX        = findColLoose(headerA, "X");
+    aColY        = findColLoose(headerA, "Y");
+
+    if (aColFilename<0 || aColID<0 || aColX<0 || aColY<0) {
+        debugHeader("CSV A", headerA);
+        exit("CSV A missing required columns (Filename, PunctaID, X, Y). See Log.");
+    }
+
+    // Pass 1: count valid rows A
+    nA = 0;
+    for (i=1; i<rowsA.length; i++) {
+        line = trim(rowsA[i]);
+        if (line=="") continue;
+
+        cols = split(line, ",");
+        if (cols.length <= aColY) continue;
+
+        x = parseFloat(cleanCell(cols[aColX]));
+        y = parseFloat(cleanCell(cols[aColY]));
+        if (x==x && y==y) nA++;
+    }
+    if (nA < 1) exit("CSV A: no valid puncta found.");
+
+    // Allocate arrays A
+    aFilenameRaw = newArray(nA);
+    aFilenameKey = newArray(nA);
+    aID          = newArray(nA);
+    aX           = newArray(nA);
+    aY           = newArray(nA);
+
+    // Pass 2: fill arrays A
+    k = 0;
+    for (i=1; i<rowsA.length; i++) {
+        line = trim(rowsA[i]);
+        if (line=="") continue;
+
+        cols = split(line, ",");
+        if (cols.length <= aColY) continue;
+
+        x = parseFloat(cleanCell(cols[aColX]));
+        y = parseFloat(cleanCell(cols[aColY]));
+        if (!(x==x && y==y)) continue;
+
+        fnRaw = cleanCell(cols[aColFilename]);
+
+        aFilenameRaw[k] = fnRaw;
+        aFilenameKey[k] = normFilename(fnRaw);
+
+        aID[k] = cleanCell(cols[aColID]);
+        aX[k]  = x;
+        aY[k]  = y;
+
+        k++;
+        if (k>=nA) break;
+    }
+
+    // -----------------------
+    // Read CSV B
+    // -----------------------
+    textB = normalizeNewlines(File.openAsString(pathB));
+    if (textB=="") exit("Could not read CSV B.");
+    rowsB = split(textB, "\n");
+    if (rowsB.length < 2) exit("CSV B has no data rows.");
+
+    headerB = split(rowsB[0], ",");
+    bColFilename = findColLoose(headerB, "Filename");
+    bColID       = findColLoose(headerB, "PunctaID");
+    bColX        = findColLoose(headerB, "X");
+    bColY        = findColLoose(headerB, "Y");
+
+    if (bColFilename<0 || bColID<0 || bColX<0 || bColY<0) {
+        debugHeader("CSV B", headerB);
+        exit("CSV B missing required columns (Filename, PunctaID, X, Y). See Log.");
+    }
+
+    // Pass 1: count valid rows B
+    nB = 0;
+    for (i=1; i<rowsB.length; i++) {
+        line = trim(rowsB[i]);
+        if (line=="") continue;
+
+        cols = split(line, ",");
+        if (cols.length <= bColY) continue;
+
+        x = parseFloat(cleanCell(cols[bColX]));
+        y = parseFloat(cleanCell(cols[bColY]));
+        if (x==x && y==y) nB++;
+    }
+    if (nB < 1) exit("CSV B: no valid puncta found.");
+
+    // Allocate arrays B
+    bFilenameRaw = newArray(nB);
+    bFilenameKey = newArray(nB);
+    bID          = newArray(nB);
+    bX           = newArray(nB);
+    bY           = newArray(nB);
+
+    // Pass 2: fill arrays B
+    k = 0;
+    for (i=1; i<rowsB.length; i++) {
+        line = trim(rowsB[i]);
+        if (line=="") continue;
+
+        cols = split(line, ",");
+        if (cols.length <= bColY) continue;
+
+        x = parseFloat(cleanCell(cols[bColX]));
+        y = parseFloat(cleanCell(cols[bColY]));
+        if (!(x==x && y==y)) continue;
+
+        fnRaw = cleanCell(cols[bColFilename]);
+
+        bFilenameRaw[k] = fnRaw;
+        bFilenameKey[k] = normFilename(fnRaw);
+
+        bID[k] = cleanCell(cols[bColID]);
+        bX[k]  = x;
+        bY[k]  = y;
+
+        k++;
+        if (k>=nB) break;
+    }
+
+    // -----------------------
+    // Unique filename keys from A
+    // -----------------------
+    uniqKey = newArray(nA);
+    uniqRawExample = newArray(nA);
+    uCount = 0;
+
+    for (i=0; i<nA; i++) {
+        key = aFilenameKey[i];
+        if (indexOfString(uniqKey, uCount, key) < 0) {
+            uniqKey[uCount] = key;
+            uniqRawExample[uCount] = aFilenameRaw[i];
+            uCount++;
+        }
+    }
+
+    // -----------------------
+    // Compute nearest B for each A within matching filename key
+    // -----------------------
+    run("Clear Results");
+    rowOut = 0;
+
+    idxA = newArray(nA);
+    idxB = newArray(nB);
+
+    // Optional debug: shows which A keys have no B matches
+    print("\\Clear");
+    print("CrossNN debug: A unique keys = " + uCount);
+
+    for (u=0; u<uCount; u++) {
+
+        key = uniqKey[u];
+
+        // indices in A for this key
+        mA = 0;
+        for (i=0; i<nA; i++) {
+            if (aFilenameKey[i] == key) { idxA[mA] = i; mA++; }
+        }
+
+        // indices in B for this key
+        mB = 0;
+        for (j=0; j<nB; j++) {
+            if (bFilenameKey[j] == key) { idxB[mB] = j; mB++; }
+        }
+
+        if (mB==0) {
+            print("NO MATCH in B for key: <" + key + ">  example A raw: <" + uniqRawExample[u] + ">");
+        }
+
+        for (a=0; a<mA; a++) {
+
+            i = idxA[a];
+
+            bestD = 1e99;
+            bestJ = -1;
+
+            if (mB > 0) {
+                for (b=0; b<mB; b++) {
+                    j = idxB[b];
+                    dx = aX[i] - bX[j];
+                    dy = aY[i] - bY[j];
+                    d = sqrt(dx*dx + dy*dy);
+                    if (d < bestD) { bestD = d; bestJ = j; }
+                }
+            }
+
+            setResult("Filename_key_used", rowOut, aFilenameKey[i]);
+            setResult("Filename_A_raw", rowOut, aFilenameRaw[i]);
+
+            setResult("QueryPunctaID", rowOut, aID[i]);
+            setResult("QueryX", rowOut, aX[i]);
+            setResult("QueryY", rowOut, aY[i]);
+
+            if (bestJ >= 0) {
+                setResult("NearestRefPunctaID", rowOut, bID[bestJ]);
+                setResult("RefX", rowOut, bX[bestJ]);
+                setResult("RefY", rowOut, bY[bestJ]);
+                setResult("NearestDist", rowOut, bestD);
+                setResult("Filename_B_raw_of_match", rowOut, bFilenameRaw[bestJ]);
+            } else {
+                setResult("NearestRefPunctaID", rowOut, "NA");
+                setResult("RefX", rowOut, NaN);
+                setResult("RefY", rowOut, NaN);
+                setResult("NearestDist", rowOut, NaN);
+                setResult("Filename_B_raw_of_match", rowOut, "NA");
+            }
+
+            rowOut++;
+        }
+    }
+
+    updateResults();
+
+    // -----------------------
+    // Auto-save next to CSV A (no File.saveDialog for old IJ)
+    // -----------------------
+    baseName = File.getName(pathA);
+    dot = lastIndexOf(baseName, ".");
+    if (dot > 0) baseName = substring(baseName, 0, dot);
+
+    outPath = File.getParent(pathA) + File.separator + baseName + "_CrossNN.csv";
+
+    saveAs("Results", outPath);
+    print("Saved to: " + outPath);
+}
+
+
+// =======================
+// Helper functions
+// =======================
+
+function normalizeNewlines(t) {
+    t = replace(t, "\r\n", "\n");
+    t = replace(t, "\r", "\n");
+    return t;
+}
+
+// Clean a CSV cell: trim, strip BOM, strip surrounding quotes
+function cleanCell(s) {
+    s = trim(s);
+
+    // Strip UTF-8 BOM if present (65279)
+    if (lengthOf(s)>0 && charCodeAt(s,0)==65279) s = substring(s, 1);
+
+    if (startsWith(s, "\"") && endsWith(s, "\"") && lengthOf(s)>=2)
+        s = substring(s, 1, lengthOf(s)-1);
+
+    return trim(s);
+}
+
+// Header match: ignore case/quotes/spaces/BOM; allow prefix match ("X (um)" -> "X")
+function findColLoose(headerArray, desiredName) {
+    want = toLowerCase(cleanCell(desiredName));
+    for (k=0; k<headerArray.length; k++) {
+        got = toLowerCase(cleanCell(headerArray[k]));
+        if (got == want) return k;
+        if (startsWith(got, want)) return k;
+    }
+    return -1;
+}
+
+// Normalize filename for matching between CSVs:
+// - remove path
+// - lowercase
+// - remove last two tokens (e.g. "green pla.tif" or "red vglut1.tif")
+// - collapse multiple spaces
+function normFilename(s) {
+
+    s = cleanCell(s);
+    s = toLowerCase(s);
+
+    // Remove folder path if present
+    p = lastIndexOf(s, "/");
+    q = lastIndexOf(s, "\\");
+    if (q > p) p = q;
+    if (p >= 0) s = substring(s, p+1);
+
+    // Split into tokens by single spaces (works for your filenames)
+    parts = split(s, " ");
+
+    // Remove last two tokens if possible
+    // Example:
+    // "1a+_1 max.tif 1 green pla.tif" -> keep "1a+_1 max.tif 1"
+    if (parts.length > 2) {
+        newName = parts[0];
+        for (i=1; i<parts.length-2; i++) {
+            if (parts[i] != "") newName = newName + " " + parts[i];
+        }
+        s = trim(newName);
+    } else {
+        s = trim(s);
+    }
+
+    // Normalize spacing (and avoid hidden mismatches)
+    s = replace(s, "  ", " ");
+    s = trim(s);
+
+    return s;
+}
+
+// search arr[0..len-1] for val
+function indexOfString(arr, len, val) {
+    for (k=0; k<len; k++)
+        if (arr[k] == val)
+            return k;
+    return -1;
+}
+
+function debugHeader(label, headerArray) {
+    print("\\Clear");
+    print(label + " header tokens:");
+    for (hh=0; hh<headerArray.length; hh++)
+        print("  ["+hh+"] = <" + headerArray[hh] + ">");
+}
