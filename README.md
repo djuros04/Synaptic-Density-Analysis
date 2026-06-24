@@ -92,7 +92,7 @@ This macro allows for standardization of ROI lengths within a chosen range. Anyt
 - Macro will then open an image file, search the thresholding and apply the appropriate value, run find maxima, analyze particles with the set min/max size and prominence, and then generate masks, ROI's and counts of the puncta. Counts will be standardized by matched length and results will be in puncta/10um, based on the appropriate scale.
 - Results will include folders containing the thresholding masks, ROIs for each image, and excel files:
   - Average Puncta contains results for each image, including puncta density
-  - Individual puncta will have a line item for each puncta, including size, signal intensity, etc. This is supplemental to the average results
+  - Individual puncta will have a line item for each puncta, including size, signal intensity, centroid locations etc. This is supplemental to the average results
   - Puncta Analysis contains genera data about the experiment/macro run
   - Common errors: Sometimes with assigning the thresholding and length values from the .csv files there is an error.
     - For length, the results of the calculation for puncta per 10um are infinity, and all lengths are 0. In that case, this can be calculate manually (tranfer over the correct lengths and calculte) and the macro does not need to be re-run
@@ -107,6 +107,9 @@ This macro allows you to quantify colocalization of 2 proteins of interest (C1 a
 - Prompt:
   - Name channels 1, 2
   - Pixel scale
+ 
+- Starting folders (obtained from independent runs of Macro 5):
+  - C1 Folder (Masks)
     
 - Part 1: Opens [n] files from both C1 and C2 folders, merge, and then saves (note: Macro automatically selects images by their number [n] in filelist alphabetically, so you will want to make sure these numbers match up. worth checking during first attemps to make sure the merged images are using the right match)
 - Part 2: Opens merged mask image, splits channels, analyzes particles of C1, then measures the ROIs on C2, and vice versa.
@@ -120,3 +123,20 @@ This macro allows you to quantify colocalization of 2 proteins of interest (C1 a
   - sizes (scaled)
   - percent colocalization (how much of the ROI is positive for signal from the other channel. typically >25% is considered colocalization
     
+
+**7. Puncta Nearest Neighbor Analysis**
+This macro allows you to use the Individual Puncta CSVs for two different markers from the Single Channel Puncta Analysis and run a nearest neighbor analysis. For a given set of puncta from a staining (e.g. Homer1 puncta at postsynapses), you can find the distance to the nearest puncta from a different staining (e.g. Bassoon puncta at presynapses) within the same ROI. This allows you to look at the distances between different puncta, which is often important for understanding spatial relationships
+
+Inputs
+- Two Individual Puncta CSVs from 5. Single Channel Puncta Analysis
+  - CSVs should be from two different stains - you are looking at the distance between two different sets of puncta
+  - The order in which you upload the CSVs is important. The first CSV is the query while the second CSV is the reference. The code looks at each query puncta and finds the nearest reference puncta to it
+  - The macro will use the names of each entry to only analyze nearest neighbor of puncta recorded from the same image
+
+Outputs
+- A new CSV is saved in the same folder as the query puncta
+- Each query punctum's centroid location and image name is listed, as well as the distance to the nearest reference punctum and the centroid location and image name of that query punctum
+- Centroid locations and distances are shown in microns
+
+
+
