@@ -1,5 +1,5 @@
 # Synaptic-Density-Analysis
-For quantifying puncta density of a synaptic marker
+For quantifying puncta density of a synaptic marker.
 
 This analysis is used to quantify the puncta density of a target of interest within an image. For synaptic densities, a chosen synaptic marker (VGLUT1, Bassoon, Homer) is quantified along a dendritic segment. This is for analysis of a single channel, not colocalization of two or more.
 
